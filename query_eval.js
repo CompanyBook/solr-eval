@@ -1,4 +1,4 @@
-var url = '/select/?start=0&rows=10&wt=json&json.wrf=?&debugQuery=true';
+var url = '/select/?start=0&rows=10&debugQuery=true';
 var luke = '/admin/luke?show=schema&wt=json&json.wrf=?&indent=true';
 var search_result = '';
 var doc_fields = [];
@@ -33,12 +33,6 @@ function do_search(){
          );
 }
 
-// function do_toggle_buttons(){
-//     $.each('.btn-group .btn', function(e){
-//         $(this).hide();
-//     });
-// }
-
 function showValue(newValue)
 {
 	document.getElementById("range").innerHTML=newValue;
@@ -46,18 +40,8 @@ function showValue(newValue)
 
 
 function do_search_after_slide(){
-    var fields = [];
-    
-    $.each(query_fields, function(field_name,boost_value){
-        var f = field_name + '^' + boost_value;
-        fields.push(f);
-    });
-    
-    var qf = 'qf=' +  fields.join(',');
-    
+    do_search();
 }
-
-
 
 $(document).ready(function() {
     
@@ -100,7 +84,7 @@ $(document).ready(function() {
     $('.btn-group .eq').live('click', function(e){
         console.log('Eq ' + get_clicker(this));
         var fieldName = get_clicker(this);
-        $('#eq').append('<input type="range" min="0" max="50" value="0" data-field-name="' + fieldName + '" /><span>' + fieldName + '</span><span>0</span>');        
+        $('#eq').append('<input type="range" min="0.01" max="10.0" precision="0.5" step="0.1" value="0.1" data-field-name="' + fieldName + '" title="' + fieldName + '" /><span>' + fieldName + '</span><span>0</span>');        
     });    
     
     $('#search > form').submit(function(e) {
@@ -114,10 +98,6 @@ $(document).ready(function() {
        do_search();
     });
 });
-
-
-
-
 
 function get_clicker(button){
     $(button).button('toggle');
@@ -201,13 +181,34 @@ function load_solr_schema(){
     }
 }
 
-function build_query(){
-        var query = $("#search_text").val()
-        var fl = "&fl="+ doc_id
-        $.each(doc_fields, function(index,val){fl += ', '+ val })
-
-        return  "http://" + solr + url +fl + "&q=" +  query
+function get_query_fields (){
+    var fields = [];
+    
+            $.each(query_fields, function(field_name,boost_value){
+                var f = field_name + '^' + boost_value;
+                fields.push(f);
+            });
+        
+        if(fields.length > 0)
+            return  '&qf=' +  fields.join('+');
+        
+    return ''
 }
+
+function build_query(){
+    console.log('build query')
+    
+    
+    var query = $("#search_text").val()
+    var fl = "&fl="+ doc_id
+
+    $.each(doc_fields, function(index,val){fl += ', '+ val })
+    
+    var json ='&wt=json&json.wrf=?'
+    
+    return  "http://" + solr + url + fl + get_query_fields() + "&q=" +  query + json;
+}
+
 function display_header(){
     var header = document.createElement('thead');
     var row =  document.createElement('tr');
