@@ -5,49 +5,99 @@ var doc_fields = ['name', 'score', 'boost_revenue', 'city'];
 var doc_id = 'company_id';
 var solr = "datanode29.companybook.no:8080/solr/no_companies_20120207";
 
+var click_data = null;
+
 $(document).ready(function() {
     
     load_solr_schema();
-    
+    display_fields();
+
+    $('.btn-group .show').live('click', function(e){
+        // $(this).text('hide')
+
+        console.log('Show ' + get_clicker(this));       
+         
+    });
+
+    $('.btn-group .eq').live('click', function(e){
+        console.log('Eq ' + get_clicker(this));
+    });    
+        
     $('#search > form').submit(function(e) {
         e.preventDefault();
-        console.log('clicked');
-
+       
         var query = $("#search_text").val()
         if (query.length == 0) {
             alert('search for something...')
             return false
         }
         $("#result_list").children().remove();
-        console.log('before search call')
         $.ajax(
         {
             url: build_query(),
             dataType: 'json',
             data: {},
             success: function(result) {
-                console.log('search done')
                 search_result = result;
-
                 display_header();
 
                 for (var i = 0; i < result.response.docs.length; i++) {
                     display_document(result.response.docs[i]);
                 }
-                console.log('end seach callback')
-                
+                console.log('end seach callback')                
             },
             error: function(e) {
                 alert('error performing search');
                     search_complete = true;
                 }       
-        }        
+            }        
         );
     });
 });
 
 
 var solr_schema = null;
+
+
+function get_clicker(button){
+    $(button).button('toggle');
+    return $(button).closest('tr').find('td').first().text();
+}
+
+function display_fields(){
+
+    var table =  $("#field_list");
+    var header_text = ['Field', "Display"];
+    
+    var header = document.createElement('thead');
+    var row =  document.createElement('tr');
+    header.appendChild(row);
+    
+    $.each(header_text ,function(index ,fieldName){
+         var th = document.createElement('th');
+            th.appendChild(document.createTextNode(fieldName));
+        	row.appendChild(th); 
+    });
+
+    table.append(header);
+    
+    var field = ''
+    for(field in solr_schema.schema.fields){
+        
+        var row = document.createElement('tr');
+        row.setAttribute('id',"field_" + field);
+        
+            var name = document.createElement('td');
+            name.appendChild(document.createTextNode(field));
+            row.appendChild(name);                    
+
+            var radioSection =  document.createElement('td');
+            $(radioSection).html('<div class="btn-group" dataType-toggle="buttons-checkbox"><button class="btn show btn-primary">Show</button><button class="btn eq btn-primary">Searchalize</button></div>');
+            row.appendChild(radioSection);                    
+        table.append(row);
+    }
+    $('.tabs').button();
+}
 
 function load_solr_schema(){
     if (typeof(localStorage) == 'undefined' ) {
@@ -81,9 +131,6 @@ function load_solr_schema(){
     	}
     }
 }
-
-
-
 
 function build_query(){
         var query = $("#search_text").val()
