@@ -1,13 +1,14 @@
 var url = '/select/?start=0&rows=10&wt=json&json.wrf=?&debugQuery=true';
+var luke = '/admin/luke?show=schema&wt=json&json.wrf=?&indent=true';
 var search_result = '';
 var doc_fields = ['name', 'score', 'boost_revenue', 'city'];
 var doc_id = 'company_id';
 var solr = "datanode29.companybook.no:8080/solr/no_companies_20120207";
 
 $(document).ready(function() {
-        alert('hey martin');
-console.log('document load');
-
+    
+    load_solr_schema();
+    
     $('#search > form').submit(function(e) {
         e.preventDefault();
         console.log('clicked');
@@ -45,9 +46,47 @@ console.log('document load');
     });
 });
 
+
+var solr_schema = null;
+
+function load_solr_schema(){
+    if (typeof(localStorage) == 'undefined' ) {
+    	alert('Your browser does not support HTML5 localStorage. Try upgrading.');
+    } else {
+    	try {
+            // downlod the schema
+            // localStorage.removeItem(solr+'_schema');
+            solr_schema = JSON.parse(localStorage.getItem(solr+'_schema')); 
+            
+            if(solr_schema != null){
+                console.log('found schema in local storage, skipping ajax call')
+                return;
+            }
+            $.ajax({
+    	       url:'http://' + solr + luke,
+    	        dataType: 'json',
+    	       success: function(data){
+                   var json_schema = JSON.stringify(data);
+                   console.log('storing schema into local storage')
+                   localStorage.setItem(solr+'_schema', json_schema);
+    	       } 
+    	    });    	    
+    	} catch (e) {
+    	 	 if (e == QUOTA_EXCEEDED_ERR) {
+    	 	 	 alert('Quota exceeded!');
+    		}else{
+    		     alert(e);
+    		}
+    		
+    	}
+    }
+}
+
+
+
+
 function build_query(){
         var query = $("#search_text").val()
-
         var fl = "&fl="+ doc_id
         $.each(doc_fields, function(index,val){fl += ', '+ val })
 
