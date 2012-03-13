@@ -1,9 +1,10 @@
-var url = '/select/?start=0&rows=10&debugQuery=true';
+var url = '/select/?start=0&rows=100&debugQuery=true';
 var luke = '/admin/luke?show=schema&wt=json&json.wrf=?&indent=true';
 var search_result = '';
-var doc_fields = [];
-//'name', 'score', 'boost_revenue'
 var doc_id = 'company_id';
+
+var doc_fields = ['score',doc_id ];
+
 var solr = "datanode29.companybook.no:8080/solr/no_companies_20120207";
 var solr_schema = null;
 var click_data = null;
@@ -21,9 +22,9 @@ function do_search(){
                  display_header();
 
                  for (var i = 0; i < result.response.docs.length; i++) {
-                     display_document(result.response.docs[i]);
+                     display_document(result.response.docs[i] , i);
                  }
-                 console.log('end seach callback')                
+                 // console.log('end seach callback')                
              },
              error: function(e) {
                  alert('error performing search');
@@ -38,55 +39,57 @@ function showValue(newValue)
 	document.getElementById("range").innerHTML=newValue;
 }
 
-
-function do_search_after_slide(){
+function equalizer_change_callback(e){
+    
+    var rank_value =  $(this).attr('value') / 100;
+ //console.log(rank_value )
+    var rank_field =  $(this).data('field-name');
+    
+    query_fields[rank_field] = rank_value;
+    
     do_search();
+}
+
+function equalizer_create_callback(e){
+    var fieldName = get_clicker(this);
+    $('#eq').append('<input type="range" min="0" max="1000" precision="1" step="1" value="1" data-field-name="' + fieldName + '" title="' + fieldName + '" /><span>' + fieldName + '</span><span>0</span>');
+    
+    save_json('eq_fields', query_fields);
+}
+
+
+
+function show_click_callback(e){
+    var fieldName = get_clicker(this);                
+    
+    if($(this).data('status') == 'show'){
+        $(this).data('status', 'hide');    
+        $(this).text('Hide')
+        
+         doc_fields.push(fieldName); 
+         do_search();
+    }
+    else {
+        $(this).text('Show')
+        $(this).data('status', 'show');    
+        doc_fields.pop(fieldName);          
+        
+        
+    }   
+        save_display_fields();     
+        do_search();
 }
 
 $(document).ready(function() {
     
     load_solr_schema();
+    load_display_fields();
     display_fields();
-    
-    // live
-    // finalise
-    
-    $('#eq > input').live('change', function(e){
 
-    var rank_value =  $(this).attr('value');
-    var rank_field =  $(this).data('field-name');
-    
-    query_fields[rank_field] = rank_value;
-    do_search_after_slide();
-    
-    });
-    
-    $('.btn-group .show').live('click', function(e){
-        
-        var fieldName = get_clicker(this);                
-        
-        if($(this).data('status') == 'show'){
-            $(this).data('status', 'hide');    
-            $(this).text('Hide')
-            
-             doc_fields.push(fieldName); 
-             do_search();
-        }
-        else {
-            $(this).text('Show')
-            $(this).data('status', 'show');    
-            doc_fields.pop(fieldName);          
-            do_search();
-        }        
+    $('#eq > input').live('change', equalizer_change_callback );    
+    $('.btn-group .eq').live('click', equalizer_create_callback);
+    $('.btn-group .show').live('click', show_click_callback );
 
-    });
-    
-    $('.btn-group .eq').live('click', function(e){
-        console.log('Eq ' + get_clicker(this));
-        var fieldName = get_clicker(this);
-        $('#eq').append('<input type="range" min="0.01" max="10.0" precision="0.5" step="0.1" value="0.1" data-field-name="' + fieldName + '" title="' + fieldName + '" /><span>' + fieldName + '</span><span>0</span>');        
-    });    
-    
     $('#search > form').submit(function(e) {
         e.preventDefault();
        
@@ -125,7 +128,7 @@ function display_fields(){
     for(field in solr_schema.schema.fields){
         
         var row = document.createElement('tr');
-        row.setAttribute('id',"field_" + field);
+        $(row).data('field', field);
         
             var name = document.createElement('td');
             name.appendChild(document.createTextNode(field));
@@ -134,16 +137,14 @@ function display_fields(){
             var radioSection =  document.createElement('td');
             
             if(doc_fields.indexOf (field)>-1 ){
-                $(radioSection).html('<div class="btn-group" dataType-toggle="buttons-checkbox"><button class="btn show btn-primary" data-status="hide">Hide</button><button class="btn eq btn-primary" data-status="enabled">Searchalize</button></div>');
+                $(radioSection).html('<div class="btn-group" dataType-toggle="buttons-checkbox"><button class="btn show btn-primary" data-field="' + field +'" data-status="hide">Hide</button><button class="btn eq btn-primary" data-status="enabled">Searchalize</button></div>');
+                    console.log( get_clicker($("button[data-field='" + field + "']")));
+
             }else{
-                $(radioSection).html('<div class="btn-group" dataType-toggle="buttons-checkbox"><button class="btn show btn-primary" data-status="show">Show</button><button class="btn eq btn-primary" data-status="enabled">Searchalize</button></div>');
+                $(radioSection).html('<div class="btn-group" dataType-toggle="buttons-checkbox"><button class="btn show btn-primary" data-field="' + field +'" data-status="show">Show</button><button class="btn eq btn-primary" data-status="enabled">Searchalize</button></div>');
             }
             
-            
-            
-            
-            
-            row.appendChild(radioSection);                    
+        row.appendChild(radioSection);                    
         table.append(row);
     }
 }
@@ -153,8 +154,7 @@ function load_solr_schema(){
     	alert('Your browser does not support HTML5 localStorage. Try upgrading.');
     } else {
     	try {
-            // downlod the schema
-            // localStorage.removeItem(solr+'_schema');
+
             solr_schema = JSON.parse(localStorage.getItem(solr+'_schema')); 
             
             if(solr_schema != null){
@@ -181,6 +181,34 @@ function load_solr_schema(){
     }
 }
 
+function save_display_fields(){
+    save_json('display',doc_fields);
+}
+
+function save_json(key, json){
+    var json_fields = JSON.stringify(json);
+    localStorage.setItem(solr + '_' + key, json_fields);
+}
+
+function load_json(key, default_value){
+    default_value = (typeof default_value == 'undefined') ?
+            {}: default_value;
+         
+    var json = JSON.parse(localStorage.getItem(solr+'_' + key)); 
+    
+    if(json != null){
+        return json;
+    }   
+    
+    return default_value; 
+}
+
+function load_display_fields(){    
+    doc_fields = load_json('display', ['score',doc_id ]);
+    
+    
+}
+
 function get_query_fields (){
     var fields = [];
     
@@ -190,7 +218,7 @@ function get_query_fields (){
             });
         
         if(fields.length > 0)
-            return  '&qf=' +  fields.join('+');
+            return  '&qf=' +  fields.join('+') +'&pf='+ fields.join('+')  ;
         
     return ''
 }
@@ -202,11 +230,11 @@ function build_query(){
     var query = $("#search_text").val()
     var fl = "&fl="+ doc_id
 
-    $.each(doc_fields, function(index,val){fl += ', '+ val })
+    $.each(doc_fields, function(index,val){fl += '+'+ val })
     
     var json ='&wt=json&json.wrf=?'
     
-    return  "http://" + solr + url + fl + get_query_fields() + "&q=" +  query + json;
+    return  "http://" + solr + url + fl + get_query_fields() + '&ps=1'   + "&q=" +  query + json;
 }
 
 function display_header(){
@@ -214,8 +242,9 @@ function display_header(){
     var row =  document.createElement('tr');
     header.appendChild(row);
 
+    
     var th = document.createElement('th');
-    th.appendChild(document.createTextNode(doc_id));
+    th.appendChild(document.createTextNode('position'));
     row.appendChild(th)
 
     for(i =0; i< doc_fields.length; i++){
@@ -225,14 +254,17 @@ function display_header(){
     }    
     document.getElementById("result_list").appendChild(header);
 }
-function display_document(doc){
 
+function display_document(doc, index){
+//replace to data-item
+  
     var row = document.createElement('tr');
     row.setAttribute('id',"result_" + doc[doc_id] );
-
+    
     var td = document.createElement('td');
-    td.appendChild(document.createTextNode(doc[doc_id]));
-	row.appendChild(td);        
+    td.appendChild(document.createTextNode(index+1));
+	row.appendChild(td);
+       
 
     for(i =0; i< doc_fields.length; i++){
         var td = document.createElement('td');
