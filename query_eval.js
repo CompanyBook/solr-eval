@@ -7,7 +7,7 @@ var doc_id = 'company_id';
 var solr = "datanode29.companybook.no:8080/solr/no_companies_20120207";
 var solr_schema = null;
 var click_data = null;
-
+var query_fields = {};
 
 function do_search(){
       $("#result_list").children().remove();
@@ -39,11 +39,44 @@ function do_search(){
 //     });
 // }
 
+function showValue(newValue)
+{
+	document.getElementById("range").innerHTML=newValue;
+}
+
+
+function do_search_after_slide(){
+    var fields = [];
+    
+    $.each(query_fields, function(field_name,boost_value){
+        var f = field_name + '^' + boost_value;
+        fields.push(f);
+    });
+    
+    var qf = 'qf=' +  fields.join(',');
+    
+}
+
+
+
 $(document).ready(function() {
     
     load_solr_schema();
     display_fields();
+    
+    // live
+    // finalise
+    
+    $('#eq > input').live('change', function(e){
 
+    var rank_value =  $(this).attr('value');
+    var rank_field =  $(this).data('field-name');
+    
+    query_fields[rank_field] = rank_value;
+    do_search_after_slide();
+    
+    });
+    
     $('.btn-group .show').live('click', function(e){
         
         var fieldName = get_clicker(this);                
@@ -63,16 +96,12 @@ $(document).ready(function() {
         }        
 
     });
-
-    
     
     $('.btn-group .eq').live('click', function(e){
         console.log('Eq ' + get_clicker(this));
+        var fieldName = get_clicker(this);
+        $('#eq').append('<input type="range" min="0" max="50" value="0" data-field-name="' + fieldName + '" /><span>' + fieldName + '</span><span>0</span>');        
     });    
-        
-    
-    
-    
     
     $('#search > form').submit(function(e) {
         e.preventDefault();
