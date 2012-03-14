@@ -1,12 +1,16 @@
 var url = '/select/?start=0&rows=100&debugQuery=true';
 var luke = '/admin/luke?show=schema&wt=json&json.wrf=?&indent=true';
+var status = 'admin/cores?action=STATUS&wt=json&json.wrf=?'
+
 var search_result = '';
 var doc_id = 'company_id';
 var slider_weight = 1000;
 
 var doc_fields = ['score',doc_id ];
 
-var solr = "datanode29.companybook.no:8080/solr/no_companies_20120207";
+var solr = "datanode29.companybook.no:8080/solr/";
+var current_shard = 'no_companies_20120207'
+
 var solr_schema = null;
 var click_data = null;
 var query_fields = {};
@@ -90,7 +94,6 @@ function load_equalizer(){
     }    
 }
 
-
 function show_click_callback(e){
     var fieldName = get_clicker(this);                
     
@@ -112,13 +115,40 @@ function show_click_callback(e){
         do_search();
 }
 
+function change_shard_callback(e){
+    console.log($(this).attr('value')); 
+}
+
+function load_shards(){
+    var shard = $('#shard');
+    $.ajax(
+     {
+         url: 'http://'+ solr + status,
+         dataType: 'json',
+         data: {},
+         success: function(result) {
+            for(var core in result.status){
+                $(shard).append('<option value="' +core+ '">' + core +'</option>');
+                console.log(core);
+            }                    
+         },
+         error: function(e) {
+             alert('error loading shards');
+                 search_complete = true;
+             }       
+         }        
+     );
+}
+
 $(document).ready(function() {
     
     load_solr_schema();
+    load_shards();
     load_display_fields();
-     load_equalizer();
+    load_equalizer();
     display_fields();
-
+    
+    $('#shard').change(change_shard_callback);
     $('#eq > input').live('change', equalizer_change_callback );    
     $('.btn-group .eq').live('click', equalizer_create_callback);
     $('.btn-group .show').live('click', show_click_callback );
@@ -188,19 +218,20 @@ function load_solr_schema(){
     } else {
     	try {
 
-            solr_schema = JSON.parse(localStorage.getItem(solr+'_schema')); 
-            
+            // solr_schema = JSON.parse(localStorage.getItem(solr+'_schema')); 
+            solr_schema = load_json('schema');
             if(solr_schema != null){
-                console.log('found schema in local storage, skipping ajax call')
+                console.log('found schema in local storage, skipping ajax call');
                 return;
             }
             $.ajax({
-    	       url:'http://' + solr + luke,
+    	       url:'http://' + solr + current_shard + luke,
     	        dataType: 'json',
     	       success: function(data){
                    var json_schema = JSON.stringify(data);
-                   console.log('storing schema into local storage')
-                   localStorage.setItem(solr+'_schema', json_schema);
+                   // console.log('storing schema into local storage')
+                   save_json('schema', json_schema);
+                    // localStorage.setItem(solr+ current_shard+ '_schema', json_schema);
     	       } 
     	    });    	    
     	} catch (e) {
@@ -220,14 +251,14 @@ function save_display_fields(){
 
 function save_json(key, json){
     var json_fields = JSON.stringify(json);
-    localStorage.setItem(solr + '_' + key, json_fields);
+    localStorage.setItem(solr + current_shard +'_' + key, json_fields);
 }
 
 function load_json(key, default_value){
     default_value = (typeof default_value == 'undefined') ?
             {}: default_value;
          
-    var json = JSON.parse(localStorage.getItem(solr+'_' + key)); 
+    var json = JSON.parse(localStorage.getItem(solr + current_shard +'_' + key)); 
     
     if(json != null){
         return json;
@@ -268,7 +299,7 @@ function build_query(){
     
     var json ='&wt=json&json.wrf=?'
     
-    return  "http://" + solr + url + fl + get_query_fields() + '&ps=1'   + "&q=" +  query + json;
+    return  "http://" + solr + current_shard + url + fl + get_query_fields() + '&ps=1'   + "&q=" +  query + json;
 }
 
 function display_header(){
@@ -296,7 +327,9 @@ function display_document(doc, index){
     row.setAttribute('id',"result_" + doc[doc_id] );
     
     var td = document.createElement('td');
-    td.appendChild(document.createTextNode(index+1));
+    // <span class="badge badge-info">8</span>
+    // td.appendChild(   document.createTextNode(index+1));
+    $(td).html('span class="badge badge-info').text(index + 1); 
 	row.appendChild(td);
        
     for(i =0; i< doc_fields.length; i++){
