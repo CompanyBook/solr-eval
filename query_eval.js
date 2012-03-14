@@ -10,6 +10,13 @@ var solr_schema = null;
 var click_data = null;
 var query_fields = {};
 
+function display_query_explain(){
+
+    $('#debug').html(search_result.debug.parsedquery);
+
+    
+}
+
 function do_search(){
       $("#result_list").children().remove();
          $.ajax(
@@ -20,6 +27,8 @@ function do_search(){
              success: function(result) {
                  search_result = result;
                  display_header();
+                 display_query_explain();
+                 
 
                  for (var i = 0; i < result.response.docs.length; i++) {
                      display_document(result.response.docs[i] , i);
@@ -41,7 +50,7 @@ function showValue(newValue)
 
 function equalizer_change_callback(e){
     
-    var rank_value =  $(this).attr('value') / 100;
+    var rank_value =  $(this).attr('value') / 1000;
  //console.log(rank_value )
     var rank_field =  $(this).data('field-name');
     
@@ -52,7 +61,7 @@ function equalizer_change_callback(e){
 
 function equalizer_create_callback(e){
     var fieldName = get_clicker(this);
-    $('#eq').append('<input type="range" min="0" max="1000" precision="1" step="1" value="1" data-field-name="' + fieldName + '" title="' + fieldName + '" /><span>' + fieldName + '</span><span>0</span>');
+    $('#eq').append('<input type="range" min="0" max="10000" precision="1" step="1" value="1" data-field-name="' + fieldName + '" title="' + fieldName + '" /><span>' + fieldName + '</span>');
     
     save_json('eq_fields', query_fields);
 }
@@ -204,9 +213,8 @@ function load_json(key, default_value){
 }
 
 function load_display_fields(){    
-    doc_fields = load_json('display', ['score',doc_id ]);
-    
-    
+      doc_fields = load_json('display', ['score',doc_id ]);
+     // doc_fields =     ['score',doc_id ]    
 }
 
 function get_query_fields (){
@@ -217,15 +225,17 @@ function get_query_fields (){
                 fields.push(f);
             });
         
-        if(fields.length > 0)
-            return  '&qf=' +  fields.join('+') +'&pf='+ fields.join('+')  ;
+        if(fields.length > 0){
+            // return  '&qf=' +  fields.join('+') +'&pf='+ fields.join('+')  ;            
+            return  '&qf=' +  fields.join('+') +'&pf='  ;
+        }
+
         
     return ''
 }
 
 function build_query(){
-    console.log('build query')
-    
+    // console.log('build query')
     
     var query = $("#search_text").val()
     var fl = "&fl="+ doc_id
@@ -265,7 +275,6 @@ function display_document(doc, index){
     td.appendChild(document.createTextNode(index+1));
 	row.appendChild(td);
        
-
     for(i =0; i< doc_fields.length; i++){
         var td = document.createElement('td');
         td.appendChild(document.createTextNode(doc[doc_fields[i]]));
