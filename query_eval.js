@@ -2,6 +2,7 @@ var url = '/select/?start=0&rows=100&debugQuery=true';
 var luke = '/admin/luke?show=schema&wt=json&json.wrf=?&indent=true';
 var search_result = '';
 var doc_id = 'company_id';
+var slider_weight = 1000;
 
 var doc_fields = ['score',doc_id ];
 
@@ -11,10 +12,7 @@ var click_data = null;
 var query_fields = {};
 
 function display_query_explain(){
-
     $('#debug').html(search_result.debug.parsedquery);
-
-    
 }
 
 function do_search(){
@@ -50,22 +48,40 @@ function showValue(newValue)
 
 function equalizer_change_callback(e){
     
-    var rank_value =  $(this).attr('value') / 1000;
- //console.log(rank_value )
+    var rank_value =  $(this).attr('value') / slider_weight;
     var rank_field =  $(this).data('field-name');
     
+    console.log (query_fields);
+    
     query_fields[rank_field] = rank_value;
+    save_json('eq_fields', query_fields);
     
     do_search();
 }
 
 function equalizer_create_callback(e){
     var fieldName = get_clicker(this);
-    $('#eq').append('<input type="range" min="0" max="10000" precision="1" step="1" value="1" data-field-name="' + fieldName + '" title="' + fieldName + '" /><span>' + fieldName + '</span>');
-    
+    query_fields[fieldName] = 0.01 ;
     save_json('eq_fields', query_fields);
+     $('#eq').children().remove();
+     load_equalizer();
+    // for(var field in query_fields) {
+    //         create_equalizer(field);
+    //     }    
+    //     
+    //     save_json('eq_fields', query_fields);
 }
 
+function create_equalizer(field_name){     
+    $('#eq').append('<input type="range" min="0" max="10000" precision="1" step="1" value="' + query_fields[field_name] * slider_weight + '" data-field-name="' + field_name  + '" title="' + field_name +  '" /><span>' + field_name + '</span>');
+}
+
+function load_equalizer(){
+    query_fields = load_json('eq_fields');
+    for(var field in query_fields) {
+        create_equalizer(field);
+    }    
+}
 
 
 function show_click_callback(e){
@@ -93,6 +109,7 @@ $(document).ready(function() {
     
     load_solr_schema();
     load_display_fields();
+     load_equalizer();
     display_fields();
 
     $('#eq > input').live('change', equalizer_change_callback );    
