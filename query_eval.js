@@ -60,16 +60,23 @@ function equalizer_change_callback(e){
 }
 
 function equalizer_create_callback(e){
+    
     var fieldName = get_clicker(this);
-    query_fields[fieldName] = 0.01 ;
+    
+    if(query_fields[fieldName]){
+        console.log("exist filedname");
+        console.log(query_fields);
+        delete query_fields[fieldName];
+        console.log(query_fields);
+        
+    }else{
+        console.log("dont exist");
+        query_fields[fieldName] = 0.01 ;
+    }
     save_json('eq_fields', query_fields);
+    
      $('#eq').children().remove();
-     load_equalizer();
-    // for(var field in query_fields) {
-    //         create_equalizer(field);
-    //     }    
-    //     
-    //     save_json('eq_fields', query_fields);
+     load_equalizer();    
 }
 
 function create_equalizer(field_name){     
