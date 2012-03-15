@@ -31,11 +31,9 @@ function do_search(){
                  display_header();
                  display_query_explain();
                  
-
                  for (var i = 0; i < result.response.docs.length; i++) {
                      display_document(result.response.docs[i] , i);
-                 }
-                 // console.log('end seach callback')                
+                 }               
              },
              error: function(e) {
                  alert('error performing search');
@@ -55,7 +53,7 @@ function equalizer_change_callback(e){
     var rank_value =  $(this).attr('value') / slider_weight;
     var rank_field =  $(this).data('field-name');
     
-    console.log (query_fields);
+    // console.log(query_fields);
     
     query_fields[rank_field] = rank_value;
     save_json('eq_fields', query_fields);
@@ -68,23 +66,18 @@ function equalizer_create_callback(e){
     var fieldName = get_clicker(this);
     
     if(query_fields[fieldName]){
-        console.log("exist filedname");
-        console.log(query_fields);
-        delete query_fields[fieldName];
-        console.log(query_fields);
-        
+        delete query_fields[fieldName];    
     }else{
-        console.log("dont exist");
         query_fields[fieldName] = 0.01 ;
     }
     save_json('eq_fields', query_fields);
     
-     $('#eq').children().remove();
+    $('#eq').children().remove();
      load_equalizer();    
 }
 
 function create_equalizer(field_name){     
-    $('#eq').append('<input type="range" min="0" max="10000" precision="1" step="1" value="' + query_fields[field_name] * slider_weight + '" data-field-name="' + field_name  + '" title="' + field_name +  '" /><span>' + field_name + '</span>');
+    $('#eq').append('<p>' + field_name +  '&nbsp;&nbsp;<input type="range" min="0" max="10000" precision="1" step="1" value="' + query_fields[field_name] * slider_weight + '" data-field-name="' + field_name  + '" title="' + field_name +  '"/></p>');
 }
 
 function load_equalizer(){
@@ -116,11 +109,14 @@ function show_click_callback(e){
 }
 
 function change_shard_callback(e){
-    console.log($(this).attr('value')); 
+    
+    current_shard =  $(this).attr('value') ;
+    initialize();
 }
 
 function load_shards(){
     var shard = $('#shard');
+    $(shard).children().remove();
     $.ajax(
      {
          url: 'http://'+ solr + status,
@@ -129,7 +125,6 @@ function load_shards(){
          success: function(result) {
             for(var core in result.status){
                 $(shard).append('<option value="' +core+ '">' + core +'</option>');
-                console.log(core);
             }                    
          },
          error: function(e) {
@@ -140,16 +135,30 @@ function load_shards(){
      );
 }
 
-$(document).ready(function() {
-    
+function initialize(){
+    // solr = $('#server_url').val(solr);
     load_solr_schema();
-    load_shards();
     load_display_fields();
     load_equalizer();
     display_fields();
+}
+
+$(document).ready(function() {
     
+    initialize();
+    load_shards();
+    
+    $('#function_query').change(function(e){
+        var f =  $(this).val(); 
+        if(f.length > 0){
+            do_search();
+        }    
+    });
+    
+    $('#server_url').val(solr) //TODO:handle when server url changes
     $('#shard').change(change_shard_callback);
-    $('#eq > input').live('change', equalizer_change_callback );    
+    $('#shard option[value=no_companies_20120207]').attr('selected', 'selected');
+    $('#eq > p > input').live('change', equalizer_change_callback );    
     $('.btn-group .eq').live('click', equalizer_create_callback);
     $('.btn-group .show').live('click', show_click_callback );
 
@@ -289,6 +298,18 @@ function get_query_fields (){
     return ''
 }
 
+function get_boost_function(){
+    var boost_function = $('#function_query').val();
+    
+    if(boost_function.length > 0){
+        return '&bf=' + boost_function 
+    }else{
+        console.log('bf empty');    
+    }
+
+
+}
+
 function build_query(){
     // console.log('build query')
     
@@ -299,7 +320,7 @@ function build_query(){
     
     var json ='&wt=json&json.wrf=?'
     
-    return  "http://" + solr + current_shard + url + fl + get_query_fields() + '&ps=1'   + "&q=" +  query + json;
+    return  "http://" + solr + current_shard + url + fl + get_query_fields() + get_boost_function()+ '&ps=1'   + "&q=" +  query + json;
 }
 
 function display_header(){
