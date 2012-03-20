@@ -3,13 +3,13 @@ var luke = '/admin/luke?show=schema&wt=json&json.wrf=?&indent=true';
 var status = 'admin/cores?action=STATUS&wt=json&json.wrf=?'
 
 var search_result = '';
-var doc_id = 'company_id';
+
 var slider_weight = 1000;
 
-var doc_fields = ['score',doc_id ];
+var doc_fields = ['score' ];
 
 var solr = "datanode29.companybook.no:8080/solr/";
-var current_shard = 'no_companies_20120207'
+var current_shard = '  '
 
 var solr_schema = null;
 var click_data = null;
@@ -81,6 +81,7 @@ function create_equalizer(field_name){
 }
 
 function load_equalizer(){
+    
     query_fields = load_json('eq_fields');
     for(var field in query_fields) {
         create_equalizer(field);
@@ -95,14 +96,11 @@ function show_click_callback(e){
         $(this).text('Hide')
         
          doc_fields.push(fieldName); 
-         do_search();
     }
     else {
         $(this).text('Show')
         $(this).data('status', 'show');    
-        doc_fields.pop(fieldName);          
-        
-        
+        doc_fields.pop(fieldName);              
     }   
         save_display_fields();     
         do_search();
@@ -135,8 +133,13 @@ function load_shards(){
      );
 }
 
+function clear(){
+    var items =  [$("#field_list"), $('#eq'),$("#result_list")];
+    $.each(items, function(it){$(this).children().remove();})    
+}
+
 function initialize(){
-    // solr = $('#server_url').val(solr);
+    clear();
     load_solr_schema();
     load_display_fields();
     load_equalizer();
@@ -181,7 +184,8 @@ function get_clicker(button){
 
 function display_fields(){
 
-    var table =  $("#field_list");
+    var table =  $("#field_list");    
+    $("#field_list").children().remove();    
     var header_text = ['Field', "Display"];
     
     var header = document.createElement('thead');
@@ -195,8 +199,12 @@ function display_fields(){
     });
 
     table.append(header);
-    
-    var field = ''
+
+    // console.log(solr_schema.schema.fields);
+    if(solr_schema == undefined || solr_schema.fields == 'undefined'){
+        return;
+    }
+    var field = '';
     for(field in solr_schema.schema.fields){
         
         var row = document.createElement('tr');
@@ -210,7 +218,7 @@ function display_fields(){
             
             if(doc_fields.indexOf (field)>-1 ){
                 $(radioSection).html('<div class="btn-group" dataType-toggle="buttons-checkbox"><button class="btn show btn-primary" data-field="' + field +'" data-status="hide">Hide</button><button class="btn eq btn-primary" data-status="enabled">Searchalize</button></div>');
-                    console.log( get_clicker($("button[data-field='" + field + "']")));
+                    // console.log( get_clicker($("button[data-field='" + field + "']")));
 
             }else{
                 $(radioSection).html('<div class="btn-group" dataType-toggle="buttons-checkbox"><button class="btn show btn-primary" data-field="' + field +'" data-status="show">Show</button><button class="btn eq btn-primary" data-status="enabled">Searchalize</button></div>');
@@ -222,36 +230,30 @@ function display_fields(){
 }
 
 function load_solr_schema(){
-    if (typeof(localStorage) == 'undefined' ) {
-    	alert('Your browser does not support HTML5 localStorage. Try upgrading.');
-    } else {
-    	try {
 
-            // solr_schema = JSON.parse(localStorage.getItem(solr+'_schema')); 
-            solr_schema = load_json('schema');
-            if(solr_schema != null){
-                console.log('found schema in local storage, skipping ajax call');
-                return;
-            }
+            // var schema = JSON.parse(localStorage.getItem(solr+'_schema')); 
+            var schema = load_json('schema');
+            console.log (schema);
+                        if(schema['schema']){
+                            console.log('have schema for ' + current_shard)
+                            solr_schema = schema;
+                            return;
+                        }
+
+
             $.ajax({
     	       url:'http://' + solr + current_shard + luke,
     	        dataType: 'json',
     	       success: function(data){
-                   var json_schema = JSON.stringify(data);
-                   // console.log('storing schema into local storage')
-                   save_json('schema', json_schema);
-                    // localStorage.setItem(solr+ current_shard+ '_schema', json_schema);
+                   // var json_schema = JSON.stringify(data);
+                   // console.log('saving schema for ' + current_shard);
+                   save_json('schema', data);
+                   
+                   solr_schema = data;
+                   
+                   display_fields();
     	       } 
     	    });    	    
-    	} catch (e) {
-    	 	 if (e == QUOTA_EXCEEDED_ERR) {
-    	 	 	 alert('Quota exceeded!');
-    		}else{
-    		     alert(e);
-    		}
-    		
-    	}
-    }
 }
 
 function save_display_fields(){
@@ -264,8 +266,15 @@ function save_json(key, json){
 }
 
 function load_json(key, default_value){
+    
+    if (typeof(localStorage) == 'undefined' ) {
+    	alert('Your browser does not support HTML5 localStorage. Try upgrading.');
+    	return
+    }
+    
     default_value = (typeof default_value == 'undefined') ?
             {}: default_value;
+    
          
     var json = JSON.parse(localStorage.getItem(solr + current_shard +'_' + key)); 
     
@@ -277,9 +286,8 @@ function load_json(key, default_value){
 }
 
 function load_display_fields(){    
-      doc_fields = load_json('display', ['score',doc_id ]);
-     // doc_fields =     ['score',doc_id ]    
-}
+      doc_fields = load_json('display', ['score']);
+ }
 
 function get_query_fields (){
     var fields = [];
@@ -314,7 +322,7 @@ function build_query(){
     // console.log('build query')
     
     var query = $("#search_text").val()
-    var fl = "&fl="+ doc_id
+    var fl = "&fl=" 
 
     $.each(doc_fields, function(index,val){fl += '+'+ val })
     
@@ -345,11 +353,10 @@ function display_document(doc, index){
 //replace to data-item
   
     var row = document.createElement('tr');
-    row.setAttribute('id',"result_" + doc[doc_id] );
+    row.setAttribute('id',"result_" + index );
     
     var td = document.createElement('td');
-    // <span class="badge badge-info">8</span>
-    // td.appendChild(   document.createTextNode(index+1));
+
     $(td).html('span class="badge badge-info').text(index + 1); 
 	row.appendChild(td);
        
